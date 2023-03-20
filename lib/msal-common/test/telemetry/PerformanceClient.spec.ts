@@ -6,12 +6,12 @@
 import {
     ApplicationTelemetry,
     IGuidGenerator,
+    IPerformanceClient,
     IPerformanceMeasurement,
     Logger,
+    PerformanceClient,
     PerformanceEvents,
-    PerformanceEventStatus,
-    IPerformanceClient,
-    PerformanceClient
+    PerformanceEventStatus
 } from "../../src";
 import crypto from 'crypto';
 
@@ -19,7 +19,7 @@ const sampleClientId = "test-client-id";
 const authority = "https://login.microsoftonline.com/common";
 const libraryName = "@azure/msal-common";
 const libraryVersion = "1.0.0";
-const samplePerfDuration = 50;
+const samplePerfDuration = 50.25;
 const sampleApplicationTelemetry: ApplicationTelemetry = {
     appName: "Test Comon App",
     appVersion: "1.0.0-test.1"
@@ -112,25 +112,21 @@ describe("PerformanceClient.spec.ts", () => {
 
         mockPerfClient.addPerformanceCallback((events =>{
             expect(events.length).toBe(1);
-
             expect(events[0].correlationId).toBe(correlationId);
             expect(events[0].authority).toBe(authority);
-            expect(events[0].durationMs).toBe(samplePerfDuration);
+            expect(events[0].durationMs).toBe(Math.floor(samplePerfDuration));
             expect(events[0].clientId).toBe(sampleClientId);
             expect(events[0].libraryName).toBe(libraryName);
             expect(events[0].libraryVersion).toBe(libraryVersion);
             expect(events[0].success).toBe(true);
             expect(events[0].appName).toBe(sampleApplicationTelemetry.appName);
             expect(events[0].appVersion).toBe(sampleApplicationTelemetry.appVersion);
-            expect(events[0]["acquireTokenSilentAsyncDurationMs"]).toBe(samplePerfDuration);
+            expect(events[0]["acquireTokenSilentAsyncDurationMs"]).toBe(Math.floor(samplePerfDuration));
             done();
         }));
 
         // Start and end top-level measurement
         const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId)
-        topLevelEvent.endMeasurement({
-            success: true
-        });
 
         // Start and end submeasurement
         const subMeasurement = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilentAsync, correlationId)
@@ -138,7 +134,9 @@ describe("PerformanceClient.spec.ts", () => {
             success: true
         });
 
-        topLevelEvent.flushMeasurement();
+        topLevelEvent.endMeasurement({
+            success: true
+        });
     });
 
     it("adds static fields", done => {
@@ -150,20 +148,17 @@ describe("PerformanceClient.spec.ts", () => {
 
         mockPerfClient.addPerformanceCallback((events => {
             expect(events.length).toBe(1);
-
             expect(events[0].correlationId).toBe(correlationId);
             expect(events[0].httpVerAuthority).toBe(authority);
             expect(events[0].extensionId).toBe(extensionId);
             done();
         }));
 
-        const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId)
+        const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
+        topLevelEvent.addStaticFields({ httpVerAuthority: authority, extensionId : extensionId });
         topLevelEvent.endMeasurement({
             success: true
         });
-        topLevelEvent.addStaticFields({ httpVerAuthority: authority, extensionId : extensionId });
-
-        topLevelEvent.flushMeasurement();
     });
 
     it("increments counters", done => {
@@ -179,14 +174,12 @@ describe("PerformanceClient.spec.ts", () => {
             done();
         }));
 
-        const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId)
+        const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
+        topLevelEvent.increment({ visibilityChangeCount: 5 });
+        topLevelEvent.increment({ visibilityChangeCount: 3 });
         topLevelEvent.endMeasurement({
             success: true
         });
-        topLevelEvent.increment({ visibilityChangeCount: 5 });
-        topLevelEvent.increment({ visibilityChangeCount: 3 });
-
-        topLevelEvent.flushMeasurement();
     });
 
     it("captures submeasurements", done => {
@@ -196,8 +189,8 @@ describe("PerformanceClient.spec.ts", () => {
         mockPerfClient.addPerformanceCallback((events =>{
             expect(events.length).toEqual(1);
             const event = events[0];
-            expect(event["acquireTokenSilentAsyncDurationMs"]).toBe(samplePerfDuration);
-            expect(event["silentIframeClientAcquireTokenDurationMs"]).toBe(samplePerfDuration);
+            expect(event["acquireTokenSilentAsyncDurationMs"]).toBe(Math.floor(samplePerfDuration));
+            expect(event["silentIframeClientAcquireTokenDurationMs"]).toBe(Math.floor(samplePerfDuration));
             expect(event.incompleteSubsCount).toEqual(0);
             done();
         }));
@@ -215,29 +208,19 @@ describe("PerformanceClient.spec.ts", () => {
         topLevelEvent.endMeasurement({
             success: true
         });
-
-        // Emit events for this operation
-        topLevelEvent.flushMeasurement();
     });
 
-    it("gracefully handles submeasurements not being ended before top level measurement", done => {
+    it("discards incomplete submeasurements", done => {
         const mockPerfClient = new MockPerformanceClient();
-
-        const endMeasurementSpy = jest.spyOn(mockPerfClient, "endMeasurement");
-
         const correlationId = "test-correlation-id";
 
         mockPerfClient.addPerformanceCallback((events =>{
             expect(events.length).toEqual(1);
             const event = events[0];
-            expect(event["acquireTokenSilentAsyncDurationMs"]).toBe(samplePerfDuration);
-            expect(event["silentIframeClientAcquireTokenDurationMs"]).toBe(samplePerfDuration);
-            expect(event["silentCacheClientAcquireTokenDurationMs"]).toBe(samplePerfDuration);
+            expect(event["acquireTokenSilentAsyncDurationMs"]).toBeUndefined();
+            expect(event["silentIframeClientAcquireTokenDurationMs"]).toBe(Math.floor(samplePerfDuration));
+            expect(event["silentCacheClientAcquireTokenDurationMs"]).toBeUndefined();
             expect(event.incompleteSubsCount).toEqual(2);
-
-            // Ensure endMeasurement was called for the incomplete event
-            expect(endMeasurementSpy.mock.calls[2][0].name).toBe(PerformanceEvents.AcquireTokenSilentAsync);
-            expect(endMeasurementSpy.mock.calls[3][0].name).toBe(PerformanceEvents.SilentCacheClientAcquireToken);
             done();
         }));
 
@@ -254,9 +237,6 @@ describe("PerformanceClient.spec.ts", () => {
         topLevelEvent.endMeasurement({
             success: true
         });
-
-        // Emit events for this operation
-        topLevelEvent.flushMeasurement();
     });
 
     it("only records the first measurement for a subMeasurement", done => {
@@ -267,16 +247,13 @@ describe("PerformanceClient.spec.ts", () => {
         mockPerfClient.addPerformanceCallback((events =>{
             expect(events.length).toBe(1);
             const event = events[0];
-            expect(event["acquireTokenSilentAsyncDurationMs"]).toBe(samplePerfDuration);
+            expect(events[0]["acquireTokenSilentAsyncDurationMs"]).toBe(Math.floor(samplePerfDuration));
             expect(event.incompleteSubsCount).toEqual(0);
             done();
         }));
 
         // Start and end top-level measurement
         const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
-        topLevelEvent.endMeasurement({
-            success: true
-        });
 
         // Start and end submeasurements
         const subMeasure1 = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilentAsync, correlationId)
@@ -290,7 +267,9 @@ describe("PerformanceClient.spec.ts", () => {
             durationMs: 1
         });
 
-        topLevelEvent.flushMeasurement();
+        topLevelEvent.endMeasurement({
+            success: true
+        });
     });
 
     it("Events are not emittted for unsupported browsers", () => {
@@ -308,12 +287,10 @@ describe("PerformanceClient.spec.ts", () => {
             success: true
         });
 
-        mockPerfClient.flushMeasurements(PerformanceEvents.AcquireTokenSilent, correlationId);
-
         expect(result).toBe(null);
     });
 
-    it("gracefully handles two requests with teh same correlation id", done => {
+    it("gracefully handles two requests with the same correlation id", done => {
         const mockPerfClient = new MockPerformanceClient();
 
         const correlationId = "test-correlation-id";
@@ -321,29 +298,85 @@ describe("PerformanceClient.spec.ts", () => {
 
         mockPerfClient.addPerformanceCallback((events =>{
             expect(events.length).toBe(1);
-
             expect(events[0].eventId).toBe(event1Id);
+            expect(events[0].success).toBeFalsy();
+            expect(events[0]["acquireTokenSilentDurationMs"]).toBe(Math.floor(samplePerfDuration));
 
             done();
         }));
 
         // Start and end top-level measurement
         const topLevelEvent1 = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
-        const topLevelEvent2 = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
-
-
-        topLevelEvent1.endMeasurement({
-            success: false
-        });
         event1Id = topLevelEvent1.event.eventId;
+        const topLevelEvent2 = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
 
         topLevelEvent2.endMeasurement({
             success: true,
             startTimeMs: topLevelEvent1.event.startTimeMs + 5
         });
+        topLevelEvent1.endMeasurement({
+            success: false
+        });
+    });
 
-        topLevelEvent2.flushMeasurement();
-        topLevelEvent1.flushMeasurement();
+    it("truncates integral fields", done => {
+        const mockPerfClient = new MockPerformanceClient();
+
+        const correlationId = "test-correlation-id";
+        const accessTokenSize = 12345.67;
+        const refreshTokenSize = 23456.78;
+        const idTokenSize = undefined;
+
+        function isIntegral(val: number | undefined) {
+            return val && Math.floor(val) === val;
+        }
+
+        mockPerfClient.addPerformanceCallback((events => {
+            expect(events.length).toBe(1);
+            expect(isIntegral(events[0].startTimeMs)).toBeTruthy();
+            expect(isIntegral(events[0].durationMs)).toBeTruthy();
+            expect(isIntegral(events[0].accessTokenSize)).toBeTruthy();
+            expect(isIntegral(events[0].refreshTokenSize)).toBeTruthy();
+            expect(isIntegral(events[0].idTokenSize)).toBeUndefined();
+
+            done();
+        }));
+
+        // Start and end top-level measurement
+        const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId)
+        topLevelEvent.addStaticFields({
+            accessTokenSize,
+            refreshTokenSize,
+            idTokenSize
+        })
+        topLevelEvent.endMeasurement({
+            success: true
+        });
+    });
+
+    it("captures total count of manually completed queue events", done => {
+        const mockPerfClient = new MockPerformanceClient();
+        const correlationId = "test-correlation-id";
+
+        mockPerfClient.addPerformanceCallback((events =>{
+            expect(events.length).toEqual(1);
+            const event = events[0];
+            expect(event.queuedCount).toEqual(4);
+            expect(event.queuedManuallyCompletedCount).toEqual(2);
+            expect(event.queuedTimeMs).toEqual(10);
+            done();
+        }));
+
+        const topLevelEvent = mockPerfClient.startMeasurement(PerformanceEvents.AcquireTokenSilent, correlationId);
+
+        mockPerfClient.addQueueMeasurement(PerformanceEvents.SilentCacheClientAcquireToken, topLevelEvent.event.correlationId, 1, false);
+        mockPerfClient.addQueueMeasurement(PerformanceEvents.AcquireTokenSilent, topLevelEvent.event.correlationId, 2, false);
+        mockPerfClient.addQueueMeasurement(PerformanceEvents.AcquireTokenByRefreshToken, topLevelEvent.event.correlationId, 3, true);
+        mockPerfClient.addQueueMeasurement(PerformanceEvents.GetAuthCodeUrl, topLevelEvent.event.correlationId, 4, true);
+
+        topLevelEvent.endMeasurement({
+            success: true
+        });
     });
 
     describe('calculateQueuedTime', () => {

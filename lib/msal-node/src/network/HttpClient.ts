@@ -13,12 +13,14 @@ import https from "https";
  * This class implements the API for network requests.
  */
 export class HttpClient implements INetworkModule {
-
+    private proxyUrl: string;
     private customAgentOptions: http.AgentOptions | https.AgentOptions;
 
     constructor(
+        proxyUrl?: string,
         customAgentOptions?: http.AgentOptions | https.AgentOptions,
     ) {
+        this.proxyUrl = proxyUrl || "";
         this.customAgentOptions = customAgentOptions || {};
     }
 
@@ -31,8 +33,8 @@ export class HttpClient implements INetworkModule {
         url: string,
         options?: NetworkRequestOptions,
     ): Promise<NetworkResponse<T>> {
-        if (options?.proxyUrl) {
-            return networkRequestViaProxy(url, HttpMethod.GET, options, this.customAgentOptions as http.AgentOptions);
+        if (this.proxyUrl) {
+            return networkRequestViaProxy(url, this.proxyUrl, HttpMethod.GET, options, this.customAgentOptions as http.AgentOptions);
         } else {
             return networkRequestViaHttps(url, HttpMethod.GET, options, this.customAgentOptions as https.AgentOptions);
         }
@@ -48,8 +50,8 @@ export class HttpClient implements INetworkModule {
         options?: NetworkRequestOptions,
         cancellationToken?: number,
     ): Promise<NetworkResponse<T>> {
-        if (options?.proxyUrl) {
-            return networkRequestViaProxy(url, HttpMethod.POST, options, this.customAgentOptions as http.AgentOptions, cancellationToken);
+        if (this.proxyUrl) {
+            return networkRequestViaProxy(url, this.proxyUrl, HttpMethod.POST, options, this.customAgentOptions as http.AgentOptions, cancellationToken);
         } else {
             return networkRequestViaHttps(url, HttpMethod.POST, options, this.customAgentOptions as https.AgentOptions, cancellationToken);
         }
@@ -57,17 +59,18 @@ export class HttpClient implements INetworkModule {
 }
 
 const networkRequestViaProxy = <T>(
-    url: string,
+    destinationUrlString: string,
+    proxyUrlString: string,
     httpMethod: string,
     options?: NetworkRequestOptions,
     agentOptions?: http.AgentOptions,
     timeout?: number,
 ): Promise<NetworkResponse<T>> => {
-    const headers = options?.headers || {} as Record<string, string>;
-    const proxyUrl = new URL(options?.proxyUrl || "");
-    const destinationUrl = new URL(url);
+    const destinationUrl = new URL(destinationUrlString);
+    const proxyUrl = new URL(proxyUrlString);
 
     // "method: connect" must be used to establish a connection to the proxy
+    const headers = options?.headers || {} as Record<string, string>;
     const tunnelRequestOptions: https.RequestOptions = {
         host: proxyUrl.hostname,
         port: proxyUrl.port,
@@ -211,7 +214,7 @@ const networkRequestViaProxy = <T>(
 };
 
 const networkRequestViaHttps = <T>(
-    url: string,
+    urlString: string,
     httpMethod: string,
     options?: NetworkRequestOptions,
     agentOptions?: https.AgentOptions,
@@ -220,10 +223,12 @@ const networkRequestViaHttps = <T>(
     const isPostRequest = httpMethod === HttpMethod.POST;
     const body: string = options?.body || "";
 
-    const emptyHeaders: Record<string, string> = {};
+    const url = new URL(urlString);
+    const headers = options?.headers || {} as Record<string, string>;
     const customOptions: https.RequestOptions = {
         method: httpMethod,
-        headers: options?.headers || emptyHeaders,
+        headers: headers,
+        ...NetworkUtils.urlToHttpOptions(url),
     };
 
     if (timeout) {
@@ -243,7 +248,7 @@ const networkRequestViaHttps = <T>(
     }
 
     return new Promise<NetworkResponse<T>>((resolve, reject) => {
-        const request = https.request(url, customOptions);
+        const request = https.request(customOptions);
 
         if (timeout) {
             request.on("timeout", () => {
