@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { useMsal } from "@azure/msal-react";
 import Avatar from '@mui/material/Avatar';

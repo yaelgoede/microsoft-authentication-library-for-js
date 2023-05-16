@@ -1,5 +1,3 @@
-'use client';
-
 import { useEffect, useState } from "react";
 import { useMsal } from "@azure/msal-react";
 import Typography from "@mui/material/Typography";
