@@ -205,9 +205,7 @@ export class AuthorizationCodeClient extends BaseClient {
         );
 
         const serverParams: ServerAuthorizationCodeResponse =
-            UrlString.getDeserializedCodeResponse(
-                this.config.authOptions.authority.options.OIDCOptions
-                    ?.serverResponseType,
+            UrlString.getDeserializedResponse(
                 hashFragment
             );
 

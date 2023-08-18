@@ -90,7 +90,6 @@ export {
 } from "./network/NetworkManager";
 export { ThrottlingUtils } from "./network/ThrottlingUtils";
 export { RequestThumbprint } from "./network/RequestThumbprint";
-export { IUri } from "./url/IUri";
 export { UrlString } from "./url/UrlString";
 // Crypto Interface
 export {

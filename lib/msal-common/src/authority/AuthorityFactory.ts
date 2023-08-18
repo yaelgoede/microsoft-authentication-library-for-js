@@ -4,9 +4,7 @@
  */
 
 import { Authority } from "./Authority";
-import { ClientConfigurationError } from "../error/ClientConfigurationError";
 import { INetworkModule } from "../network/INetworkModule";
-import { StringUtils } from "../utils/StringUtils";
 import { ClientAuthError } from "../error/ClientAuthError";
 import { ICacheManager } from "../cache/interface/ICacheManager";
 import { AuthorityOptions } from "./AuthorityOptions";
@@ -45,7 +43,7 @@ export class AuthorityFactory {
 
         // Initialize authority and perform discovery endpoint check.
         const acquireTokenAuthority: Authority =
-            AuthorityFactory.createInstance(
+            new Authority(
                 authorityUriFinal,
                 networkClient,
                 cacheManager,
@@ -68,40 +66,5 @@ export class AuthorityFactory {
                 e as string
             );
         }
-    }
-
-    /**
-     * Create an authority object of the correct type based on the url
-     * Performs basic authority validation - checks to see if the authority is of a valid type (i.e. aad, b2c, adfs)
-     *
-     * Does not perform endpoint discovery.
-     *
-     * @param authorityUrl
-     * @param networkInterface
-     * @param protocolMode
-     */
-    static createInstance(
-        authorityUrl: string,
-        networkInterface: INetworkModule,
-        cacheManager: ICacheManager,
-        authorityOptions: AuthorityOptions,
-        logger: Logger,
-        performanceClient?: IPerformanceClient,
-        correlationId?: string
-    ): Authority {
-        // Throw error if authority url is empty
-        if (StringUtils.isEmpty(authorityUrl)) {
-            throw ClientConfigurationError.createUrlEmptyError();
-        }
-
-        return new Authority(
-            authorityUrl,
-            networkInterface,
-            cacheManager,
-            authorityOptions,
-            logger,
-            performanceClient,
-            correlationId
-        );
     }
 }

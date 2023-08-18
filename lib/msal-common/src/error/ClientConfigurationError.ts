@@ -25,14 +25,6 @@ export const ClientConfigurationErrorMessage = {
         code: "authority_uri_insecure",
         desc: "Authority URIs must use https.  Please see here for valid authority configuration options: https://docs.microsoft.com/en-us/azure/active-directory/develop/msal-js-initializing-client-applications#configuration-options",
     },
-    urlParseError: {
-        code: "url_parse_error",
-        desc: "URL could not be parsed into appropriate segments.",
-    },
-    urlEmptyError: {
-        code: "empty_url_error",
-        desc: "URL was empty or null.",
-    },
     emptyScopesError: {
         code: "empty_input_scopes_error",
         desc: "Scopes cannot be passed as null, undefined or empty array because they are required to obtain an access token.",
@@ -167,30 +159,6 @@ export class ClientConfigurationError extends ClientAuthError {
         return new ClientConfigurationError(
             ClientConfigurationErrorMessage.authorityUriInsecure.code,
             `${ClientConfigurationErrorMessage.authorityUriInsecure.desc} Given URI: ${urlString}`
-        );
-    }
-
-    /**
-     * Creates an error thrown if URL string does not parse into separate segments.
-     * @param urlString
-     */
-    static createUrlParseError(
-        urlParseError: string
-    ): ClientConfigurationError {
-        return new ClientConfigurationError(
-            ClientConfigurationErrorMessage.urlParseError.code,
-            `${ClientConfigurationErrorMessage.urlParseError.desc} Given Error: ${urlParseError}`
-        );
-    }
-
-    /**
-     * Creates an error thrown if URL string is empty or null.
-     * @param urlString
-     */
-    static createUrlEmptyError(): ClientConfigurationError {
-        return new ClientConfigurationError(
-            ClientConfigurationErrorMessage.urlEmptyError.code,
-            ClientConfigurationErrorMessage.urlEmptyError.desc
         );
     }
 

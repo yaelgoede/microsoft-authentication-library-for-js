@@ -15,7 +15,6 @@ import {
     AccessTokenEntity,
     RefreshTokenEntity,
     ProtocolMode,
-    AuthorityFactory,
     AuthorityOptions,
     AuthorityMetadataEntity,
     ValidCredentialType,
@@ -23,6 +22,7 @@ import {
     LogLevel,
     TokenKeys,
     ServerTelemetryManager,
+    Authority,
 } from "../../src";
 import {
     AUTHENTICATION_RESULT,
@@ -298,7 +298,7 @@ export class ClientTestUtils {
         };
         const logger = new Logger(loggerOptions);
 
-        const authority = AuthorityFactory.createInstance(
+        const authority = new Authority(
             TEST_CONFIG.validAuthority,
             mockHttpClient,
             mockStorage,

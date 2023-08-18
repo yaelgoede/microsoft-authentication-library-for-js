@@ -5,7 +5,6 @@
 
 import { ICrypto, SignedHttpRequestParameters } from "./ICrypto";
 import { TimeUtils } from "../utils/TimeUtils";
-import { UrlString } from "../url/UrlString";
 import { IPerformanceClient } from "../telemetry/performance/IPerformanceClient";
 import { PerformanceEvents } from "../telemetry/performance/PerformanceEvent";
 
@@ -131,19 +130,18 @@ export class PopTokenGenerator {
         } = request;
 
         const resourceUrlString = resourceRequestUri
-            ? new UrlString(resourceRequestUri)
+            ? new URL(resourceRequestUri)
             : undefined;
-        const resourceUrlComponents = resourceUrlString?.getUrlComponents();
         return await this.cryptoUtils.signJwt(
             {
                 at: payload,
                 ts: TimeUtils.nowSeconds(),
                 m: resourceRequestMethod?.toUpperCase(),
-                u: resourceUrlComponents?.HostNameAndPort,
+                u: resourceUrlString?.host,
                 nonce: shrNonce || this.cryptoUtils.createNewGuid(),
-                p: resourceUrlComponents?.AbsolutePath,
-                q: resourceUrlComponents?.QueryString
-                    ? [[], resourceUrlComponents.QueryString]
+                p: resourceUrlString?.toString(),
+                q: resourceUrlString?.search
+                    ? [[], resourceUrlString?.search]
                     : undefined,
                 client_claims: shrClaims || undefined,
                 ...claims,

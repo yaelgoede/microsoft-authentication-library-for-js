@@ -5,8 +5,6 @@ import {
 } from "../../src/network/INetworkModule";
 import { Constants } from "../../src/utils/Constants";
 import {
-    TEST_URIS,
-    RANDOM_TEST_GUID,
     DEFAULT_OPENID_CONFIG_RESPONSE,
     TEST_CONFIG,
     DEFAULT_TENANT_DISCOVERY_RESPONSE,
@@ -25,7 +23,7 @@ import { AuthorityOptions } from "../../src/authority/AuthorityOptions";
 import { ProtocolMode } from "../../src/authority/ProtocolMode";
 import { AuthorityMetadataEntity } from "../../src/cache/entities/AuthorityMetadataEntity";
 import { OpenIdConfigResponse } from "../../src/authority/OpenIdConfigResponse";
-import { Logger, LogLevel, UrlString } from "../../src";
+import { Logger, LogLevel } from "../../src";
 import { RegionDiscovery } from "../../src/authority/RegionDiscovery";
 import { InstanceDiscoveryMetadata } from "../../src/authority/AuthorityMetadata";
 
@@ -126,7 +124,7 @@ describe("Authority.ts Class Unit Tests", () => {
                         authorityOptions,
                         logger
                     )
-            ).toThrowError(ClientConfigurationErrorMessage.urlParseError.desc);
+            ).toThrowError();
             expect(
                 () =>
                     new Authority(
@@ -136,7 +134,7 @@ describe("Authority.ts Class Unit Tests", () => {
                         authorityOptions,
                         logger
                     )
-            ).toThrowError(ClientConfigurationErrorMessage.urlEmptyError.desc);
+            ).toThrowError();
         });
     });
 
@@ -172,58 +170,6 @@ describe("Authority.ts Class Unit Tests", () => {
             expect(authority.canonicalAuthority.endsWith("/")).toBe(true);
             expect(authority.canonicalAuthority).toBe(
                 `${Constants.DEFAULT_AUTHORITY}`
-            );
-        });
-
-        it("Set canonical authority performs validation and canonicalization on url", () => {
-            expect(
-                () =>
-                    (authority.canonicalAuthority =
-                        "http://login.microsoftonline.com/common")
-            ).toThrowError(
-                ClientConfigurationErrorMessage.authorityUriInsecure.desc
-            );
-            expect(
-                () =>
-                    (authority.canonicalAuthority =
-                        "https://login.microsoftonline.com/")
-            ).not.toThrowError();
-            expect(
-                () => (authority.canonicalAuthority = "This is not a URI")
-            ).toThrowError(ClientConfigurationErrorMessage.urlParseError.desc);
-
-            authority.canonicalAuthority = `${TEST_URIS.ALTERNATE_INSTANCE}/${RANDOM_TEST_GUID}`;
-            expect(authority.canonicalAuthority.endsWith("/")).toBe(true);
-            expect(authority.canonicalAuthority).toBe(
-                `${TEST_URIS.ALTERNATE_INSTANCE}/${RANDOM_TEST_GUID}/`
-            );
-        });
-
-        it("Get canonicalAuthorityUrlComponents returns current url components", () => {
-            expect(authority.canonicalAuthorityUrlComponents.Protocol).toBe(
-                "https:"
-            );
-            expect(
-                authority.canonicalAuthorityUrlComponents.HostNameAndPort
-            ).toBe("login.microsoftonline.com");
-            expect(
-                authority.canonicalAuthorityUrlComponents.PathSegments
-            ).toEqual(["common"]);
-            expect(authority.canonicalAuthorityUrlComponents.AbsolutePath).toBe(
-                "/common/"
-            );
-            expect(
-                authority.canonicalAuthorityUrlComponents.Hash
-            ).toBeUndefined();
-            expect(
-                authority.canonicalAuthorityUrlComponents.Search
-            ).toBeUndefined();
-        });
-
-        it("tenant is equal to first path segment value", () => {
-            expect(authority.tenant).toBe("common");
-            expect(authority.tenant).toBe(
-                authority.canonicalAuthorityUrlComponents.PathSegments[0]
             );
         });
 
@@ -414,19 +360,11 @@ describe("Authority.ts Class Unit Tests", () => {
 
                 const newAuthorityEndpoint =
                     response.authorization_endpoint.replace(tenant, newTenant);
-                const urlComponents = new UrlString(
-                    newAuthorityEndpoint
-                ).getUrlComponents();
 
                 // Mimic tenant switching
                 // @ts-ignore
                 authority.metadata.authorization_endpoint =
                     newAuthorityEndpoint;
-                jest.spyOn(
-                    Authority.prototype,
-                    <any>"canonicalAuthorityUrlComponents",
-                    "get"
-                ).mockReturnValue(urlComponents);
 
                 expect(authority.authorizationEndpoint).toBe(
                     response.authorization_endpoint.replace(tenant, newTenant)
@@ -461,19 +399,11 @@ describe("Authority.ts Class Unit Tests", () => {
                         tenantDomain,
                         newTenantDomain
                     );
-                const urlComponents = new UrlString(
-                    newAuthorityEndpoint
-                ).getUrlComponents();
 
                 // Mimic tenant switching
                 // @ts-ignore
                 customAuthority.metadata.authorization_endpoint =
                     newAuthorityEndpoint;
-                jest.spyOn(
-                    Authority.prototype,
-                    <any>"canonicalAuthorityUrlComponents",
-                    "get"
-                ).mockReturnValue(urlComponents);
 
                 expect(customAuthority.authorizationEndpoint).toBe(
                     b2cResponse.authorization_endpoint.replace(
@@ -507,9 +437,6 @@ describe("Authority.ts Class Unit Tests", () => {
 
                 const newAuthorityEndpoint =
                     response.authorization_endpoint.replace(tenant, newTenant);
-                const urlComponents = new UrlString(
-                    newAuthorityEndpoint
-                ).getUrlComponents();
 
                 // Mimic tenant switching
                 // @ts-ignore
@@ -517,9 +444,9 @@ describe("Authority.ts Class Unit Tests", () => {
                     newAuthorityEndpoint;
                 jest.spyOn(
                     Authority.prototype,
-                    <any>"canonicalAuthorityUrlComponents",
+                    "tenant",
                     "get"
-                ).mockReturnValue(urlComponents);
+                ).mockReturnValue(newTenant);
 
                 expect(customAuthority.authorizationEndpoint).toBe(
                     response.authorization_endpoint.replace(tenant, newTenant)

@@ -69,26 +69,6 @@ export class StringUtils {
     }
 
     /**
-     * Parses string into an object.
-     *
-     * @param query
-     */
-    static queryStringToObject<T>(query: string): T {
-        const obj: {} = {};
-        const params = query.split("&");
-        const decode = (s: string) => decodeURIComponent(s.replace(/\+/g, " "));
-        params.forEach((pair) => {
-            if (pair.trim()) {
-                const [key, value] = pair.split(/=(.+)/g, 2); // Split on the first occurence of the '=' character
-                if (key && value) {
-                    obj[decode(key)] = decode(value);
-                }
-            }
-        });
-        return obj as T;
-    }
-
-    /**
      * Trims entries in an array.
      *
      * @param arr

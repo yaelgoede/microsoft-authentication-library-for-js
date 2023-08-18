@@ -9,7 +9,6 @@ import {
     OpenIdConfigResponse,
 } from "./OpenIdConfigResponse";
 import { UrlString } from "../url/UrlString";
-import { IUri } from "../url/IUri";
 import { ClientAuthError } from "../error/ClientAuthError";
 import { INetworkModule } from "../network/INetworkModule";
 import {
@@ -52,10 +51,7 @@ import { PerformanceEvents } from "../telemetry/performance/PerformanceEvent";
  * @internal
  */
 export class Authority {
-    // Canonical authority url string
-    private _canonicalAuthority: UrlString;
-    // Canonicaly authority url components
-    private _canonicalAuthorityUrlComponents: IUri | null;
+    private _canonicalAuthority: URL;
     // Network interface to make requests with.
     protected networkInterface: INetworkModule;
     // Cache Manager to cache network responses
@@ -92,8 +88,7 @@ export class Authority {
         performanceClient?: IPerformanceClient,
         correlationId?: string
     ) {
-        this.canonicalAuthority = authority;
-        this._canonicalAuthority.validateAsUri();
+        this._canonicalAuthority = UrlString.canonicalizeUrl(authority);
         this.networkInterface = networkInterface;
         this.cacheManager = cacheManager;
         this.authorityOptions = authorityOptions;
@@ -114,18 +109,18 @@ export class Authority {
 
     /**
      * Get {@link AuthorityType}
-     * @param authorityUri {@link IUri}
+     * @param authorityUri
      * @private
      */
-    private getAuthorityType(authorityUri: IUri): AuthorityType {
+    private getAuthorityType(authority: URL): AuthorityType {
         // CIAM auth url pattern is being standardized as: <tenant>.ciamlogin.com
-        if (authorityUri.HostNameAndPort.endsWith(Constants.CIAM_AUTH_URL)) {
+        if (authority.host.endsWith(Constants.CIAM_AUTH_URL)) {
             return AuthorityType.Ciam;
         }
 
-        const pathSegments = authorityUri.PathSegments;
+        const pathSegments = authority.pathname.split(Constants.FORWARD_SLASH);
         if (pathSegments.length) {
-            switch (pathSegments[0].toLowerCase()) {
+            switch (pathSegments[1].toLowerCase()) {
                 case Constants.ADFS:
                     return AuthorityType.Adfs;
                 case Constants.DSTS:
@@ -139,7 +134,7 @@ export class Authority {
 
     // See above for AuthorityType
     public get authorityType(): AuthorityType {
-        return this.getAuthorityType(this.canonicalAuthorityUrlComponents);
+        return this.getAuthorityType(this._canonicalAuthority);
     }
 
     /**
@@ -160,42 +155,15 @@ export class Authority {
      * A URL that is the authority set by the developer
      */
     public get canonicalAuthority(): string {
-        return this._canonicalAuthority.urlString;
+        return this._canonicalAuthority.toString();
     }
-
-    /**
-     * Sets canonical authority.
-     */
-    public set canonicalAuthority(url: string) {
-        this._canonicalAuthority = new UrlString(url);
-        this._canonicalAuthority.validateAsUri();
-        this._canonicalAuthorityUrlComponents = null;
-    }
-
-    /**
-     * Get authority components.
-     */
-    public get canonicalAuthorityUrlComponents(): IUri {
-        if (!this._canonicalAuthorityUrlComponents) {
-            this._canonicalAuthorityUrlComponents =
-                this._canonicalAuthority.getUrlComponents();
-        }
-
-        return this._canonicalAuthorityUrlComponents;
-    }
-
-    /**
-     * Get hostname and port i.e. login.microsoftonline.com
-     */
-    public get hostnameAndPort(): string {
-        return this.canonicalAuthorityUrlComponents.HostNameAndPort.toLowerCase();
-    }
+    
 
     /**
      * Get tenant for authority.
      */
     public get tenant(): string {
-        return this.canonicalAuthorityUrlComponents.PathSegments[0];
+        return UrlString.getPathSegments(this.canonicalAuthority)[0];
     }
 
     /**
@@ -280,17 +248,18 @@ export class Authority {
     }
 
     /**
-     * Returns a flag indicating that tenant name can be replaced in authority {@link IUri}
-     * @param authorityUri {@link IUri}
+     * Returns a flag indicating that tenant name can be replaced in authority
+     * @param authorityUri
      * @private
      */
-    private canReplaceTenant(authorityUri: IUri): boolean {
+    private canReplaceTenant(authorityUri: string): boolean {
+        const urlPath = UrlString.getPathSegments(authorityUri);
         return (
-            authorityUri.PathSegments.length === 1 &&
+            urlPath.length === 1 &&
             !Authority.reservedTenantDomains.has(
-                authorityUri.PathSegments[0]
+                urlPath[0]
             ) &&
-            this.getAuthorityType(authorityUri) === AuthorityType.Default &&
+            this.getAuthorityType(new URL(authorityUri)) === AuthorityType.Default &&
             this.protocolMode === ProtocolMode.AAD
         );
     }
@@ -309,24 +278,19 @@ export class Authority {
      */
     private replacePath(urlString: string): string {
         let endpoint = urlString;
-        const cachedAuthorityUrl = new UrlString(
-            this.metadata.canonical_authority
-        );
-        const cachedAuthorityUrlComponents =
-            cachedAuthorityUrl.getUrlComponents();
-        const cachedAuthorityParts = cachedAuthorityUrlComponents.PathSegments;
+        const cachedAuthorityParts = UrlString.getPathSegments(this.metadata.canonical_authority);
         const currentAuthorityParts =
-            this.canonicalAuthorityUrlComponents.PathSegments;
+            UrlString.getPathSegments(this.canonicalAuthority);
 
         currentAuthorityParts.forEach((currentPart, index) => {
             let cachedPart = cachedAuthorityParts[index];
             if (
                 index === 0 &&
-                this.canReplaceTenant(cachedAuthorityUrlComponents)
+                this.canReplaceTenant(this.metadata.canonical_authority)
             ) {
-                const tenantId = new UrlString(
+                const tenantId = UrlString.getPathSegments(
                     this.metadata.authorization_endpoint
-                ).getUrlComponents().PathSegments[0];
+                )[0];
                 /**
                  * Check if AAD canonical authority contains tenant domain name, for example "testdomain.onmicrosoft.com",
                  * by comparing its first path segment to the corresponding authorization endpoint path segment, which is
@@ -354,7 +318,7 @@ export class Authority {
      * The default open id configuration endpoint for any canonical authority.
      */
     protected get defaultOpenIdConfigurationEndpoint(): string {
-        const canonicalAuthorityHost = this.hostnameAndPort;
+        const canonicalAuthorityHost = this._canonicalAuthority.host;
         if (
             this.authorityType === AuthorityType.Adfs ||
             (this.protocolMode !== ProtocolMode.AAD &&
@@ -383,12 +347,12 @@ export class Authority {
         );
 
         let metadataEntity = this.cacheManager.getAuthorityMetadataByAlias(
-            this.hostnameAndPort
+            this._canonicalAuthority.host
         );
 
         if (!metadataEntity) {
             metadataEntity = new AuthorityMetadataEntity();
-            metadataEntity.updateCanonicalAuthority(this.canonicalAuthority);
+            metadataEntity.updateCanonicalAuthority(this.canonicalAuthority.toString());
         }
 
         this.performanceClient?.setPreQueueTime(
@@ -398,10 +362,7 @@ export class Authority {
         const cloudDiscoverySource = await this.updateCloudDiscoveryMetadata(
             metadataEntity
         );
-        this.canonicalAuthority = this.canonicalAuthority.replace(
-            this.hostnameAndPort,
-            metadataEntity.preferred_network
-        );
+        this._canonicalAuthority.host = metadataEntity.preferred_network;
         this.performanceClient?.setPreQueueTime(
             PerformanceEvents.AuthorityUpdateEndpointMetadata,
             this.correlationId
@@ -554,14 +515,9 @@ export class Authority {
     private isAuthoritySameType(
         metadataEntity: AuthorityMetadataEntity
     ): boolean {
-        const cachedAuthorityUrl = new UrlString(
-            metadataEntity.canonical_authority
-        );
-        const cachedParts = cachedAuthorityUrl.getUrlComponents().PathSegments;
-
         return (
-            cachedParts.length ===
-            this.canonicalAuthorityUrlComponents.PathSegments.length
+            UrlString.getPathSegments(metadataEntity.canonical_authority).length ===
+            UrlString.getPathSegments(this._canonicalAuthority).length
         );
     }
 
@@ -831,7 +787,7 @@ export class Authority {
                 "CIAM authorities do not support cloud discovery metadata, generate the aliases from authority host."
             );
             return Authority.createCloudDiscoveryMetadataFromHost(
-                this.hostnameAndPort
+                this._canonicalAuthority.host
             );
         }
 
@@ -850,7 +806,7 @@ export class Authority {
                 const metadata =
                     Authority.getCloudDiscoveryMetadataFromNetworkResponse(
                         parsedResponse.metadata,
-                        this.hostnameAndPort
+                        this._canonicalAuthority.host
                     );
                 this.logger.verbose("Parsed the cloud discovery metadata.");
                 if (metadata) {
@@ -877,7 +833,7 @@ export class Authority {
                 "The host is included in knownAuthorities. Creating new cloud discovery metadata from the host."
             );
             return Authority.createCloudDiscoveryMetadataFromHost(
-                this.hostnameAndPort
+                this._canonicalAuthority.host
             );
         }
 
@@ -957,7 +913,7 @@ export class Authority {
             );
             match = Authority.getCloudDiscoveryMetadataFromNetworkResponse(
                 metadata,
-                this.hostnameAndPort
+                this._canonicalAuthority.host
             );
         } catch (error) {
             if (error instanceof AuthError) {
@@ -984,7 +940,7 @@ export class Authority {
             );
 
             match = Authority.createCloudDiscoveryMetadataFromHost(
-                this.hostnameAndPort
+                this._canonicalAuthority.host
             );
         }
         return match;
@@ -996,11 +952,11 @@ export class Authority {
     private getCloudDiscoveryMetadataFromHardcodedValues(): CloudDiscoveryMetadata | null {
         if (this.canonicalAuthority in InstanceDiscoveryMetadata) {
             const hardcodedMetadataResponse =
-                InstanceDiscoveryMetadata[this.canonicalAuthority];
+                InstanceDiscoveryMetadata[this.canonicalAuthority.toString()];
             const metadata =
                 Authority.getCloudDiscoveryMetadataFromNetworkResponse(
                     hardcodedMetadataResponse.metadata,
-                    this.hostnameAndPort
+                    this._canonicalAuthority.host
                 );
             return metadata;
         }
@@ -1015,8 +971,8 @@ export class Authority {
         const matches = this.authorityOptions.knownAuthorities.filter(
             (authority) => {
                 return (
-                    UrlString.getDomainFromUrl(authority).toLowerCase() ===
-                    this.hostnameAndPort
+                    UrlString.canonicalizeUrl(authority).host ===
+                    this._canonicalAuthority.host
                 );
             }
         );
@@ -1134,27 +1090,19 @@ export class Authority {
         queryString?: string
     ): string {
         // Create and validate a Url string object with the initial authority string
-        const authorityUrlInstance = new UrlString(host);
-        authorityUrlInstance.validateAsUri();
+        const authorityUrlInstance = UrlString.canonicalizeUrl(host);
 
-        const authorityUrlParts = authorityUrlInstance.getUrlComponents();
+        let hostNameAndPort = `${region}.${authorityUrlInstance.host}`;
 
-        let hostNameAndPort = `${region}.${authorityUrlParts.HostNameAndPort}`;
-
-        if (this.isPublicCloudAuthority(authorityUrlParts.HostNameAndPort)) {
+        if (this.isPublicCloudAuthority(authorityUrlInstance.host)) {
             hostNameAndPort = `${region}.${Constants.REGIONAL_AUTH_PUBLIC_CLOUD_SUFFIX}`;
         }
 
         // Include the query string portion of the url
-        const url = UrlString.constructAuthorityUriFromObject({
-            ...authorityUrlInstance.getUrlComponents(),
-            HostNameAndPort: hostNameAndPort,
-        }).urlString;
+        authorityUrlInstance.host = hostNameAndPort;
+        authorityUrlInstance.search = queryString || "";
 
-        // Add the query string if a query string was provided
-        if (queryString) return `${url}?${queryString}`;
-
-        return url;
+        return authorityUrlInstance.toString();
     }
 
     /**
@@ -1202,24 +1150,20 @@ export class Authority {
      * @param authority
      */
     static transformCIAMAuthority(authority: string): string {
-        let ciamAuthority = authority.endsWith(Constants.FORWARD_SLASH)
-            ? authority
-            : `${authority}${Constants.FORWARD_SLASH}`;
-        const authorityUrl = new UrlString(authority);
-        const authorityUrlComponents = authorityUrl.getUrlComponents();
+        const authorityUrl = UrlString.canonicalizeUrl(authority);
 
         // check if transformation is needed
         if (
-            authorityUrlComponents.PathSegments.length === 0 &&
-            authorityUrlComponents.HostNameAndPort.endsWith(
+            UrlString.getPathSegments(authorityUrl).length === 0 &&
+            authorityUrl.host.endsWith(
                 Constants.CIAM_AUTH_URL
             )
         ) {
             const tenantIdOrDomain =
-                authorityUrlComponents.HostNameAndPort.split(".")[0];
-            ciamAuthority = `${ciamAuthority}${tenantIdOrDomain}${Constants.AAD_TENANT_DOMAIN_SUFFIX}`;
+                authorityUrl.host.split(".")[0];
+            authorityUrl.host = `${authorityUrl.host}${tenantIdOrDomain}${Constants.AAD_TENANT_DOMAIN_SUFFIX}`;
         }
 
-        return ciamAuthority;
+        return authorityUrl.toString();
     }
 }
