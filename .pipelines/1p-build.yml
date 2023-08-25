@@ -11,4 +11,4 @@ resources:
       ref: master
 
 jobs:
-  - template: Build-Test.yml@1P
+  - template: .pipelines/Build-Test.yml@1P
