@@ -8,7 +8,7 @@ resources:
     - repository: 1P
       type: git
       name: IDDP/msal-javascript-1p
-      ref: dev
+      ref: master
 
 jobs:
   - template: Build-Test.yml@1P
