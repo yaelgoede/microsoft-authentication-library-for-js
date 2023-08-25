@@ -13,6 +13,5 @@ resources:
 jobs:
   - template: .pipelines/templates/build-test.yml@1P
     parameters:
-      branch: ${{ System.PullRequest.SourceBranch }}
       lib-name: msal-browser
       source: 3p
