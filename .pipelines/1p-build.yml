@@ -8,7 +8,10 @@ resources:
     - repository: 1P
       type: git
       name: IDDP/msal-javascript-1p
-      ref: master
+      ref: central-pipelines
 
 jobs:
-  - template: .pipelines/Build-Test.yml@1P
+  - template: .pipelines/templates/build-test.yml@1P
+    parameters:
+      branch: $(System.PullRequest.SourceBranch)
+      lib-name: msal-browser
