@@ -13,5 +13,5 @@ resources:
 jobs:
   - template: .pipelines/templates/build-test.yml@1P
     parameters:
-      lib-name: msal-browser
+      libName: msal-browser
       source: 3p
