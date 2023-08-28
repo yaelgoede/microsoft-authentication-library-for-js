@@ -12,8 +12,8 @@ resources:
 
 jobs:
 - template: .pipelines/templates/build-test.yml@1P
-    parameters:
-      libName: msal-common
+  parameters:
+    libName: msal-common
 - template: .pipelines/templates/build-test.yml@1P
   parameters:
     libName: msal-browser
