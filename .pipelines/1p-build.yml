@@ -29,5 +29,5 @@ jobs:
 - template: .pipelines/templates/build-test.yml@1P
   parameters:
     libName: msal-node-extensions
-    os: ["ubuntu-latest", "windows-latest", "macOs-latest"]
+    os: ["ubuntu", "windows", "macOs"]
 
