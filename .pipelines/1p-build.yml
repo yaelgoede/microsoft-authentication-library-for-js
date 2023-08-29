@@ -19,6 +19,9 @@ jobs:
     libName: msal-browser
 - template: .pipelines/templates/build-test.yml@1P
   parameters:
+    libName: msal-browser-1p
+- template: .pipelines/templates/build-test.yml@1P
+  parameters:
     libName: msal-node
 - template: .pipelines/templates/build-test.yml@1P
   parameters:
