@@ -21,6 +21,7 @@ import { StringDict } from "../utils/MsalTypes";
  */
 export type CommonRefreshTokenRequest = BaseAuthRequest & {
     refreshToken: string;
+    expiresOn?: string;
     ccsCredential?: CcsCredential;
     forceCache?: boolean;
     tokenBodyParameters?: StringDict;

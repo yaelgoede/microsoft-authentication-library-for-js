@@ -102,7 +102,8 @@ export class RefreshTokenClient extends BaseClient {
             undefined,
             true,
             request.forceCache,
-            requestId
+            requestId,
+            request.expiresOn
         );
     }
 
@@ -209,6 +210,15 @@ export class RefreshTokenClient extends BaseClient {
                 InteractionRequiredAuthErrorCodes.noTokensFound
             );
         }
+
+        if (
+            refreshToken.expiresOn &&
+            Number(refreshToken.expiresOn) < TimeUtils.nowSeconds() + 5 * 60
+        ) {
+            throw createInteractionRequiredAuthError(
+                InteractionRequiredAuthErrorCodes.refreshTokenExpired
+            );
+        }
         // attach cached RT size to the current measurement
 
         const refreshTokenRequest: CommonRefreshTokenRequest = {
@@ -220,6 +230,7 @@ export class RefreshTokenClient extends BaseClient {
                 credential: request.account.homeAccountId,
                 type: CcsCredentialType.HOME_ACCOUNT_ID,
             },
+            expiresOn: refreshToken.expiresOn,
         };
 
         return invokeAsync(

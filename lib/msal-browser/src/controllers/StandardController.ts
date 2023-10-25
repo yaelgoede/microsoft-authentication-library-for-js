@@ -2099,7 +2099,9 @@ export class StandardController implements IController {
                                         refreshTokenError.errorCode ===
                                             ClientAuthErrorCodes.tokenRefreshRequired)) ||
                                 refreshTokenError.errorCode ===
-                                    InteractionRequiredAuthErrorCodes.noTokensFound;
+                                    InteractionRequiredAuthErrorCodes.noTokensFound ||
+                                refreshTokenError.errorCode ===
+                                    InteractionRequiredAuthErrorCodes.refreshTokenExpired;
 
                             const tryIframeRenewal =
                                 cacheLookupPolicy ===

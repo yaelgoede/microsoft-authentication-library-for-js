@@ -167,7 +167,8 @@ export function createRefreshTokenEntity(
     refreshToken: string,
     clientId: string,
     familyId?: string,
-    userAssertionHash?: string
+    userAssertionHash?: string,
+    expiresOn?: string
 ): RefreshTokenEntity {
     const rtEntity: RefreshTokenEntity = {
         credentialType: CredentialType.REFRESH_TOKEN,
@@ -183,6 +184,10 @@ export function createRefreshTokenEntity(
 
     if (familyId) {
         rtEntity.familyId = familyId;
+    }
+
+    if (expiresOn) {
+        rtEntity.expiresOn = expiresOn;
     }
 
     return rtEntity;

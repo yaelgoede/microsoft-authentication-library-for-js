@@ -245,7 +245,8 @@ export class ResponseHandler {
         userAssertionHash?: string,
         handlingRefreshTokenResponse?: boolean,
         forceCacheRefreshTokenResponse?: boolean,
-        serverRequestId?: string
+        serverRequestId?: string,
+        rtExpiresOn?: string
     ): Promise<AuthenticationResult> {
         this.performanceClient?.addQueueMeasurement(
             PerformanceEvents.HandleServerTokenResponse,
@@ -311,7 +312,8 @@ export class ResponseHandler {
             request,
             idTokenClaims,
             userAssertionHash,
-            authCodePayload
+            authCodePayload,
+            rtExpiresOn
         );
         let cacheContext;
         try {
@@ -397,7 +399,8 @@ export class ResponseHandler {
         request: BaseAuthRequest,
         idTokenClaims?: TokenClaims,
         userAssertionHash?: string,
-        authCodePayload?: AuthorizationCodePayload
+        authCodePayload?: AuthorizationCodePayload,
+        rtExpiresOn?: string
     ): CacheRecord {
         const env = authority.getPreferredCache();
         if (!env) {
@@ -491,7 +494,8 @@ export class ResponseHandler {
                 serverTokenResponse.refresh_token,
                 this.clientId,
                 serverTokenResponse.foci,
-                userAssertionHash
+                userAssertionHash,
+                rtExpiresOn
             );
         }
 
