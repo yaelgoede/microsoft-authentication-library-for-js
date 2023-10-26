@@ -200,6 +200,11 @@ export const PerformanceEvents = {
         "standardInteractionClientInitializeAuthorizationCodeRequest",
 
     /**
+     * Popup Handling
+     */
+    MonitorPopupForHash: "monitorPopupForHash",
+
+    /**
      * getAuthCodeUrl API (msal-browser and msal-node).
      */
     GetAuthCodeUrl: "getAuthCodeUrl",

@@ -20,6 +20,7 @@ import {
     ICrypto,
     ProtocolMode,
     ServerResponseType,
+    invokeAsync,
 } from "@azure/msal-common";
 import { StandardInteractionClient } from "./StandardInteractionClient";
 import { EventType } from "../event/EventType";
@@ -281,7 +282,13 @@ export class PopupClient extends StandardInteractionClient {
             );
 
             // Monitor the window for the hash. Return the string value and close the popup when the hash is received. Default timeout is 60 seconds.
-            const hash = await this.monitorPopupForHash(popupWindow);
+            const hash = await invokeAsync(
+                this.monitorPopupForHash.bind(this),
+                PerformanceEvents.MonitorPopupForHash,
+                this.logger,
+                this.performanceClient,
+                this.correlationId
+            )(popupWindow);
             // Deserialize hash fragment response parameters.
             const serverParams: ServerAuthorizationCodeResponse =
                 UrlString.getDeserializedHash(hash);
@@ -543,28 +550,17 @@ export class PopupClient extends StandardInteractionClient {
      * @param popupWindow - window that is being monitored
      * @param timeout - timeout for processing hash once popup is redirected back to application
      */
-    monitorPopupForHash(popupWindow: Window): Promise<string> {
-        return new Promise((resolve, reject) => {
-            /*
-             * Polling for popups needs to be tick-based,
-             * since a non-trivial amount of time can be spent on interaction (which should not count against the timeout).
-             */
-            const maxTicks =
-                this.config.system.windowHashTimeout /
-                this.config.system.pollIntervalMilliseconds;
-            let ticks = 0;
+    async monitorPopupForHash(popupWindow: Window): Promise<string> {
+        const loggerPrefix = "monitorPopupForHash -"; // Used for logger messages in order to not repeat string definitions
+        const serverResponseType =
+            this.config.auth.OIDCOptions.serverResponseType;
 
-            this.logger.verbose(
-                "PopupHandler.monitorPopupForHash - polling started"
-            );
+        return new Promise<string>((resolve, reject) => {
+            this.logger.verbose(`${loggerPrefix} polling started`);
 
             const intervalId = setInterval(() => {
                 // Window is closed
                 if (popupWindow.closed) {
-                    this.logger.error(
-                        "PopupHandler.monitorPopupForHash - window closed"
-                    );
-                    this.cleanPopup();
                     clearInterval(intervalId);
                     reject(
                         createBrowserAuthError(
@@ -574,8 +570,7 @@ export class PopupClient extends StandardInteractionClient {
                     return;
                 }
 
-                let href = Constants.EMPTY_STRING;
-                let serverResponseString = Constants.EMPTY_STRING;
+                let href = "";
                 try {
                     /*
                      * Will throw if cross origin,
@@ -583,11 +578,6 @@ export class PopupClient extends StandardInteractionClient {
                      * since we need the interval to keep running while on STS UI.
                      */
                     href = popupWindow.location.href;
-                    serverResponseString =
-                        this.extractServerResponseStringFromPopup(
-                            popupWindow,
-                            href
-                        );
                 } catch (e) {}
 
                 // Don't process blank pages or cross domain
@@ -595,57 +585,53 @@ export class PopupClient extends StandardInteractionClient {
                     return;
                 }
 
+                clearInterval(intervalId);
                 this.logger.verbose(
-                    "PopupHandler.monitorPopupForHash - popup window is on same origin as caller"
+                    `${loggerPrefix} popup window is on same origin as caller`
                 );
-
-                /*
-                 * Only run clock when we are on same domain for popups
-                 * as popup operations can take a long time.
-                 */
-                ticks++;
-
-                if (serverResponseString) {
-                    this.logger.verbose(
-                        "PopupHandler.monitorPopupForHash - found hash in url"
+                const serverResponseString =
+                    this.extractServerResponseStringFromPopup(
+                        popupWindow,
+                        serverResponseType
                     );
-                    clearInterval(intervalId);
-                    this.cleanPopup(popupWindow);
 
-                    if (
-                        UrlString.hashContainsKnownProperties(
-                            serverResponseString
+                if (
+                    UrlString.hashContainsKnownProperties(serverResponseString)
+                ) {
+                    // The hash/query string contain the server response properties
+                    resolve(serverResponseString);
+                    return;
+                }
+
+                // One common reason for not detecting the server response is that the identity provider is returning the auth response on the query string instead of the hash. Check query string to give a more informative log message if this is the case.
+                if (
+                    serverResponseType === ServerResponseType.FRAGMENT &&
+                    UrlString.hashContainsKnownProperties(
+                        this.extractServerResponseStringFromPopup(
+                            popupWindow,
+                            ServerResponseType.QUERY
                         )
-                    ) {
-                        this.logger.verbose(
-                            "PopupHandler.monitorPopupForHash - hash contains known properties, returning."
-                        );
-                        resolve(serverResponseString);
-                    } else {
-                        this.logger.error(
-                            "PopupHandler.monitorPopupForHash - found hash in url but it does not contain known properties. Check that your router is not changing the hash prematurely."
-                        );
-                        this.logger.errorPii(
-                            `PopupHandler.monitorPopupForHash - hash found: ${serverResponseString}`
-                        );
-                        reject(
-                            createBrowserAuthError(
-                                BrowserAuthErrorCodes.hashDoesNotContainKnownProperties
-                            )
-                        );
-                    }
-                } else if (ticks > maxTicks) {
+                    )
+                ) {
                     this.logger.error(
-                        "PopupHandler.monitorPopupForHash - unable to find hash in url, timing out"
+                        `${loggerPrefix} response properties detected on query string instead of hash. Ensure your identity provider is returning the response on the hash fragment.`
                     );
-                    clearInterval(intervalId);
-                    reject(
-                        createBrowserAuthError(
-                            BrowserAuthErrorCodes.monitorPopupTimeout
-                        )
+                } else {
+                    this.logger.errorPii(
+                        `${loggerPrefix} ${serverResponseType} found: ${serverResponseString}`
                     );
                 }
+
+                reject(
+                    createBrowserAuthError(
+                        serverResponseString
+                            ? BrowserAuthErrorCodes.hashDoesNotContainKnownProperties
+                            : BrowserAuthErrorCodes.hashEmptyError
+                    )
+                );
             }, this.config.system.pollIntervalMilliseconds);
+        }).finally(() => {
+            this.cleanPopup(popupWindow);
         });
     }
 

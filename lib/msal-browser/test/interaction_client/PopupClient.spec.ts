@@ -1645,7 +1645,7 @@ describe("PopupClient", () => {
             });
         });
 
-        it("throws timeout if popup is same origin but no hash is present", async () => {
+        it("throws hash_empty_error if popup is same origin but no hash is present", async () => {
             const popup = {
                 location: {
                     href: "http://localhost",
@@ -1690,14 +1690,14 @@ describe("PopupClient", () => {
                 TEST_CONFIG.CORRELATION_ID
             );
 
-            const result = await popupClient
+            let errorCode;
+            await popupClient
                 //@ts-ignore
                 .monitorPopupForHash(popup)
                 .catch((e) => {
-                    expect(e.errorCode).toEqual(
-                        BrowserAuthErrorMessage.monitorPopupTimeoutError.code
-                    );
+                    errorCode = e.errorCode;
                 });
+            expect(errorCode).toEqual(BrowserAuthErrorCodes.hashEmptyError);
         });
 
         it("returns hash", (done) => {
