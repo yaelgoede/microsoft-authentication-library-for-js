@@ -23,4 +23,5 @@ export type CommonSilentFlowRequest = BaseAuthRequest & {
     account: AccountInfo;
     forceRefresh: boolean;
     tokenBodyParameters?: StringDict;
+    enableRTExpiryCheck?: boolean;
 };

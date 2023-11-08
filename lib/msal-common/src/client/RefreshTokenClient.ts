@@ -218,6 +218,7 @@ export class RefreshTokenClient extends BaseClient {
         }
 
         if (
+            request.enableRTExpiryCheck &&
             refreshToken.expiresOn &&
             Number(refreshToken.expiresOn) < TimeUtils.nowSeconds() + 5 * 60
         ) {
