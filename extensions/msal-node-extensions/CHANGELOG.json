@@ -2,6 +2,27 @@
   "name": "@azure/msal-node-extensions",
   "entries": [
     {
+      "date": "Thu, 14 Dec 2023 19:22:10 GMT",
+      "version": "1.0.9",
+      "tag": "@azure/msal-node-extensions_v1.0.9",
+      "comments": {
+        "patch": [
+          {
+            "author": "thomas.norling@microsoft.com",
+            "package": "@azure/msal-node-extensions",
+            "commit": "fd49b33e306006b14f05a05a9d4cb53dd9d71a00",
+            "comment": "Set engines field to >=16"
+          },
+          {
+            "author": "beachball",
+            "package": "@azure/msal-node-extensions",
+            "comment": "Bump @azure/msal-common to v14.6.0",
+            "commit": "not available"
+          }
+        ]
+      }
+    },
+    {
       "date": "Fri, 01 Dec 2023 18:46:06 GMT",
       "version": "1.0.8",
       "tag": "@azure/msal-node-extensions_v1.0.8",

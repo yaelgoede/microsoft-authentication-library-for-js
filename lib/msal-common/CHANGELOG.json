@@ -2,6 +2,59 @@
   "name": "@azure/msal-common",
   "entries": [
     {
+      "date": "Thu, 14 Dec 2023 19:22:09 GMT",
+      "version": "14.6.0",
+      "tag": "@azure/msal-common_v14.6.0",
+      "comments": {
+        "patch": [
+          {
+            "author": "hemoral@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "f0d87e330dc7186a609fe65f545ffbdabdc68876",
+            "comment": "Fix external account loading #6744"
+          },
+          {
+            "author": "thomas.norling@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "462e8768041263510096f31f826be31db1563fe7",
+            "comment": "Fix token refreshes with relative redirectUri #6761"
+          },
+          {
+            "author": "thomas.norling@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "c2dfe4ed005d7ec87d0eded9449935d17e811f65",
+            "comment": "Don't lookup tokens until they are needed"
+          },
+          {
+            "author": "hemoral@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "793b5e6fd8ad3aa8bcfe8315cd8e852e0f4ee3b5",
+            "comment": "Handle bad_token by removing bad refresh token from cache #6757"
+          },
+          {
+            "author": "thomas.norling@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "162a8c1e2eaf7bc1992cb9ba11100818cf788391",
+            "comment": "Convert ThrottlingEntity into a Type"
+          },
+          {
+            "author": "thomas.norling@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "4ef12a58add1bf9d62bc30b700a80b860c340adc",
+            "comment": "Check RT expiration before attempting to redeem it #6703"
+          }
+        ],
+        "minor": [
+          {
+            "author": "kshabelko@microsoft.com",
+            "package": "@azure/msal-common",
+            "commit": "4aacf4d835e64ad4340639c7f7b5b41c137f7ce6",
+            "comment": "Dynamically load BrowserPerformanceMeasurement to capture browser perf measurements if session storage flag is set #6748"
+          }
+        ]
+      }
+    },
+    {
       "date": "Fri, 01 Dec 2023 18:46:06 GMT",
       "version": "14.5.0",
       "tag": "@azure/msal-common_v14.5.0",

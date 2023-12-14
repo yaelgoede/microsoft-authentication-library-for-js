@@ -1,8 +1,18 @@
 # Change Log - @azure/msal-node
 
-This log was last generated on Fri, 01 Dec 2023 18:46:06 GMT and should not be manually modified.
+This log was last generated on Thu, 14 Dec 2023 19:22:10 GMT and should not be manually modified.
 
 <!-- Start content -->
+
+## 2.6.1
+
+Thu, 14 Dec 2023 19:22:10 GMT
+
+### Patches
+
+- Convert ThrottlingEntity into a Type (thomas.norling@microsoft.com)
+- Set engines field to >=16 (thomas.norling@microsoft.com)
+- Bump @azure/msal-common to v14.6.0
 
 ## 2.6.0
 
